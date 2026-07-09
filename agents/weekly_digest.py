@@ -117,7 +117,7 @@ def _rotation_commentary(theme_returns: dict) -> str:
 def _theme_section(tid: str, data: dict, commentary: str) -> str:
     agg   = data["aggregate"]
     theme = THEME_BY_ID[tid]
-    w_str = f'{agg["weekly"]:+.2f}%' if agg["weekly"] is not None else "—"
+    w_str = f'&nbsp;{agg["weekly"]:+.2f}%' if agg["weekly"] is not None else "—"
     color = "#16a34a" if (agg["weekly"] or 0) >= 0 else "#dc2626"
 
     html  = (

@@ -75,7 +75,7 @@ def _drilldown_section(movers: list, theme_returns: dict, commentary: dict) -> s
         agg   = data["aggregate"]
         sign  = "+" if (agg["daily"] or 0) >= 0 else ""
         color = "#16a34a" if (agg["daily"] or 0) >= 0 else "#dc2626"
-        daily_str = f'{sign}{agg["daily"]:.2f}%' if agg["daily"] is not None else "—"
+        daily_str = f'&nbsp;{sign}{agg["daily"]:.2f}%' if agg["daily"] is not None else "—"
 
         html += (
             f'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px;'
