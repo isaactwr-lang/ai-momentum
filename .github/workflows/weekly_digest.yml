@@ -1,0 +1,39 @@
+name: AI Momentum — Weekly Digest
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"   # Monday 01:00 UTC = 09:00 SGT
+  workflow_dispatch:
+    inputs:
+      as_of_date:
+        description: "Simulate run as of this date (YYYY-MM-DD). Leave blank for latest."
+        required: false
+        default: ""
+
+jobs:
+  weekly-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run weekly digest
+        env:
+          GROQ_API_KEY:        ${{ secrets.GROQ_API_KEY }}
+          GMAIL_USER:          ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL:     ${{ secrets.RECIPIENT_EMAIL }}
+          RUN_AS_OF:           ${{ github.event.inputs.as_of_date }}
+        run: python agents/weekly_digest.py

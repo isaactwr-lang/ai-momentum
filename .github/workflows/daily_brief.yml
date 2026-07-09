@@ -1,0 +1,52 @@
+name: AI Momentum — Daily Brief
+
+on:
+  schedule:
+    - cron: "0 0 * * 2-6"   # Tue–Sat 00:00 UTC = 08:00 SGT (captures Mon–Fri US closes)
+  workflow_dispatch:
+    inputs:
+      as_of_date:
+        description: "Simulate run as of this date (YYYY-MM-DD). Leave blank for latest."
+        required: false
+        default: ""
+
+jobs:
+  daily-brief:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily brief
+        env:
+          GROQ_API_KEY:        ${{ secrets.GROQ_API_KEY }}
+          GMAIL_USER:          ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL:     ${{ secrets.RECIPIENT_EMAIL }}
+          RUN_AS_OF:           ${{ github.event.inputs.as_of_date }}
+        run: python agents/daily_brief.py
+
+      - name: Regenerate dashboard
+        env:
+          RUN_AS_OF: ${{ github.event.inputs.as_of_date }}
+        run: python agents/dashboard.py
+
+      - name: Commit updated dashboard
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --cached --quiet || git commit -m "chore: update dashboard $(date -u +%Y-%m-%d)"
+          git push
