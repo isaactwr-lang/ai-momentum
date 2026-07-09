@@ -129,7 +129,7 @@ def _theme_section(tid: str, data: dict, commentary: str) -> str:
         f'<span style="font-weight:700;font-size:15px;color:#1a3a5c">{theme["name"]}</span>'
         f'<span style="font-size:11px;color:#9ca3af;margin-left:8px">{theme["layer"]}</span>'
         f'</div>'
-        f'<span style="font-size:20px;font-weight:800;color:{color}">{w_str}</span>'
+        f'<span style="font-size:14px;font-weight:700;color:{color}">{w_str}</span>'
         f'</div>'
     )
     html += theme_returns_table(data, title="")

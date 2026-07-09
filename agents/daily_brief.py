@@ -82,7 +82,7 @@ def _drilldown_section(movers: list, theme_returns: dict, commentary: dict) -> s
             f'padding:14px 16px;margin-bottom:12px;">'
             f'<div style="display:flex;justify-content:space-between;align-items:baseline">'
             f'<span style="font-weight:700;font-size:15px;color:#1a3a5c">{theme["name"]}</span>'
-            f'<span style="font-size:20px;font-weight:800;color:{color}">{daily_str}</span>'
+            f'<span style="font-size:14px;font-weight:700;color:{color}">{daily_str}</span>'
             f'</div>'
             f'<div style="font-size:11px;color:#9ca3af;margin-bottom:8px">'
             f'{theme["layer"]} · {theme["thesis"]}</div>'
