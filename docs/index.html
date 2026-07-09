@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Momentum Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f3f4f6; color: #1f2937; }
+  header { background: #1a3a5c; color: #fff; padding: 16px 24px; }
+  header h1 { font-size: 20px; }
+  header p  { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+  .container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+
+  /* Breadcrumb */
+  #breadcrumb { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+  #breadcrumb span { cursor: pointer; color: #1a3a5c; text-decoration: underline; }
+
+  /* Layer grid */
+  .layer-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 20px; }
+  .layer-card {
+    background: #fff; border: 2px solid #e5e7eb; border-radius: 6px;
+    padding: 14px 10px; text-align: center; cursor: pointer; transition: border-color 0.15s;
+  }
+  .layer-card:hover, .layer-card.active { border-color: #1a3a5c; }
+  .layer-card .layer-name  { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+  .layer-card .layer-ret   { font-size: 22px; font-weight: 800; margin-top: 6px; }
+
+  /* Theme grid */
+  #theme-panel { display: none; margin-bottom: 20px; }
+  #theme-panel h2 { font-size: 15px; color: #1a3a5c; margin-bottom: 12px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+  .theme-card {
+    border-radius: 4px; padding: 10px 8px; text-align: center;
+    cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s;
+  }
+  .theme-card:hover, .theme-card.active { border-color: #fff; }
+  .theme-card .theme-name { font-size: 9px; font-weight: 700; line-height: 1.3; }
+  .theme-card .theme-ret  { font-size: 14px; font-weight: 800; margin-top: 4px; }
+
+  /* Ticker panel */
+  #ticker-panel { display: none; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; }
+  #ticker-panel h2 { font-size: 15px; color: #1a3a5c; margin-bottom: 4px; }
+  #ticker-panel .thesis { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th { background: #1a3a5c; color: #fff; padding: 6px 10px; text-align: right; white-space: nowrap; }
+  th:first-child { text-align: left; }
+  td { padding: 5px 10px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+  td:first-child { text-align: left; font-weight: 700; }
+  .pos { color: #16a34a; font-weight: 600; }
+  .neg { color: #dc2626; font-weight: 600; }
+  .neu { color: #6b7280; }
+  .footer { font-size: 11px; color: #9ca3af; text-align: center; margin-top: 32px; padding-bottom: 24px; }
+
+  @media (max-width: 600px) {
+    .layer-grid  { grid-template-columns: repeat(2,1fr); }
+    .theme-grid  { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ AI Momentum Dashboard</h1>
+  <p>22 themes · ~110 tickers · equal-weight aggregates · updated Jul 09, 2026 17:48 SGT</p>
+</header>
+
+<div class="container">
+  <div id="breadcrumb">
+    <span onclick="resetAll()">All Layers</span>
+    <span id="bc-layer" style="display:none"> › <span id="bc-layer-name" onclick="showLayer(currentLayer)"></span></span>
+    <span id="bc-theme" style="display:none"> › <span id="bc-theme-name"></span></span>
+  </div>
+
+  <div class="layer-grid" id="layer-grid"></div>
+
+  <div id="theme-panel">
+    <h2 id="theme-panel-title"></h2>
+    <div class="theme-grid" id="theme-grid"></div>
+  </div>
+
+  <div id="ticker-panel">
+    <h2 id="ticker-title"></h2>
+    <p class="thesis" id="ticker-thesis"></p>
+    <table id="ticker-table"></table>
+  </div>
+
+  <div class="footer">
+    Data via Yahoo Finance &nbsp;·&nbsp;
+    <a href="https://github.com/isaactwr-lang/ai-momentum" style="color:#1a3a5c;">GitHub</a>
+    &nbsp;·&nbsp; Refreshed daily after US close
+  </div>
+</div>
+
+<script>
+const DATA = {
+  "generated_at": "Jul 09, 2026 17:48 SGT",
+  "layers": {
+    "Silicon": {
+      "daily": 1.54,
+      "weekly": -2.58,
+      "one_month": 0.23,
+      "ytd": 84.78,
+      "one_year": 187.47
+    },
+    "Infrastructure": {
+      "daily": 2.45,
+      "weekly": 2.28,
+      "one_month": -3.16,
+      "ytd": 38.03,
+      "one_year": 101.08
+    },
+    "Connectivity": {
+      "daily": 2.34,
+      "weekly": 0.02,
+      "one_month": -7.25,
+      "ytd": 87.86,
+      "one_year": 279.64
+    },
+    "Platform": {
+      "daily": -0.31,
+      "weekly": -1.47,
+      "one_month": -4.74,
+      "ytd": 0.05,
+      "one_year": 11.34
+    },
+    "Applications": {
+      "daily": -1.66,
+      "weekly": -0.84,
+      "one_month": -2.54,
+      "ytd": 4.62,
+      "one_year": 9.67
+    }
+  },
+  "themes": {
+    "ai_accelerators": {
+      "name": "AI Accelerators",
+      "layer": "Silicon",
+      "thesis": "Merchant GPU/AI chips competing for data center training sockets",
+      "aggregate": {
+        "daily": 1.66,
+        "weekly": -3.75,
+        "one_month": 3.0,
+        "ytd": 69.5,
+        "one_year": 157.19
+      },
+      "tickers": {
+        "NVDA": {
+          "last": 204.12,
+          "daily": 3.65,
+          "weekly": 4.77,
+          "one_month": -0.48,
+          "ytd": 8.09,
+          "one_year": 27.6
+        },
+        "AMD": {
+          "last": 517.41,
+          "daily": 0.25,
+          "weekly": -0.08,
+          "one_month": 10.94,
+          "ytd": 131.53,
+          "one_year": 275.42
+        },
+        "INTC": {
+          "last": 110.24,
+          "daily": -0.14,
+          "weekly": -8.4,
+          "one_month": 11.16,
+          "ytd": 179.94,
+          "one_year": 367.32
+        },
+        "CBRS": {
+          "last": 181.72,
+          "daily": 2.89,
+          "weekly": -11.3,
+          "one_month": -9.6,
+          "ytd": -41.58,
+          "one_year": -41.58
+        }
+      }
+    },
+    "custom_silicon": {
+      "name": "Custom Silicon & ASICs",
+      "layer": "Silicon",
+      "thesis": "Hyperscaler ASIC design wins, architecture licensing, edge/automotive NPUs",
+      "aggregate": {
+        "daily": 1.21,
+        "weekly": 0.45,
+        "one_month": -7.41,
+        "ytd": 58.79,
+        "one_year": 60.41
+      },
+      "tickers": {
+        "AVGO": {
+          "last": 388.69,
+          "daily": 4.83,
+          "weekly": 7.83,
+          "one_month": 0.93,
+          "ytd": 12.23,
+          "one_year": 44.05
+        },
+        "MRVL": {
+          "last": 231.71,
+          "daily": 0.44,
+          "weekly": -5.54,
+          "one_month": -12.05,
+          "ytd": 159.53,
+          "one_year": 222.91
+        },
+        "ARM": {
+          "last": 300.24,
+          "daily": -0.06,
+          "weekly": -4.77,
+          "one_month": -12.45,
+          "ytd": 161.69,
+          "one_year": 103.15
+        },
+        "QCOM": {
+          "last": 186.56,
+          "daily": 1.96,
+          "weekly": 5.85,
+          "one_month": -13.61,
+          "ytd": 8.54,
+          "one_year": 19.03
+        },
+        "MBLY": {
+          "last": 9.14,
+          "daily": -3.79,
+          "weekly": -4.49,
+          "one_month": -3.48,
+          "ytd": -18.61,
+          "one_year": -50.97
+        },
+        "NXPI": {
+          "last": 283.81,
+          "daily": 3.9,
+          "weekly": 3.82,
+          "one_month": -3.78,
+          "ytd": 29.36,
+          "one_year": 24.32
+        }
+      }
+    },
+    "ai_memory": {
+      "name": "AI Memory",
+      "layer": "Silicon",
+      "thesis": "HBM and NAND supply for AI training clusters; HBM pricing cycle",
+      "aggregate": {
+        "daily": 2.5,
+        "weekly": -5.17,
+        "one_month": 4.0,
+        "ytd": 183.66,
+        "one_year": 615.22
+      },
+      "tickers": {
+        "MU": {
+          "last": 948.8,
+          "daily": 1.11,
+          "weekly": -2.73,
+          "one_month": 9.83,
+          "ytd": 200.98,
+          "one_year": 663.8
+        },
+        "000660.KS": {
+          "last": 2186000.0,
+          "daily": 5.3,
+          "weekly": -9.86,
+          "one_month": 6.74,
+          "ytd": 223.55,
+          "one_year": 672.93
+        },
+        "005930.KS": {
+          "last": 278000.0,
+          "daily": 0.18,
+          "weekly": -10.18,
+          "one_month": -8.1,
+          "ytd": 116.79,
+          "one_year": 362.46
+        },
+        "WDC": {
+          "last": 550.3,
+          "daily": 3.42,
+          "weekly": 2.1,
+          "one_month": 7.54,
+          "ytd": 193.32,
+          "one_year": 761.68
+        }
+      }
+    },
+    "semis_equipment": {
+      "name": "Semiconductor Equipment",
+      "layer": "Silicon",
+      "thesis": "Fab capital equipment rotating on AI-driven capex cycle with 12-18 month lag",
+      "aggregate": {
+        "daily": 1.85,
+        "weekly": -4.43,
+        "one_month": 14.12,
+        "ytd": 80.41,
+        "one_year": 165.45
+      },
+      "tickers": {
+        "ASML": {
+          "last": 1768.65,
+          "daily": 1.22,
+          "weekly": -0.04,
+          "one_month": 7.73,
+          "ytd": 52.51,
+          "one_year": 124.47
+        },
+        "AMAT": {
+          "last": 570.5,
+          "daily": 2.89,
+          "weekly": -5.4,
+          "one_month": 25.94,
+          "ytd": 112.71,
+          "one_year": 194.73
+        },
+        "LRCX": {
+          "last": 333.15,
+          "daily": 2.15,
+          "weekly": -5.2,
+          "one_month": 9.93,
+          "ytd": 80.37,
+          "one_year": 235.56
+        },
+        "KLAC": {
+          "last": 221.18,
+          "daily": 2.18,
+          "weekly": -6.1,
+          "one_month": 14.65,
+          "ytd": 73.99,
+          "one_year": 142.17
+        },
+        "ENTG": {
+          "last": 138.72,
+          "daily": 2.69,
+          "weekly": -5.41,
+          "one_month": 10.61,
+          "ytd": 55.13,
+          "one_year": 60.0
+        },
+        "MKSI": {
+          "last": 349.39,
+          "daily": -0.05,
+          "weekly": -4.42,
+          "one_month": 15.83,
+          "ytd": 107.73,
+          "one_year": 235.78
+        }
+      }
+    },
+    "eda_ip": {
+      "name": "EDA & Chip Design IP",
+      "layer": "Silicon",
+      "thesis": "EDA software and IP licensing duopoly; every AI chip was designed on one of these",
+      "aggregate": {
+        "daily": 0.16,
+        "weekly": -0.18,
+        "one_month": -3.55,
+        "ytd": 5.48,
+        "one_year": -2.75
+      },
+      "tickers": {
+        "SNPS": {
+          "last": 434.5,
+          "daily": -0.49,
+          "weekly": -0.61,
+          "one_month": -6.53,
+          "ytd": -9.56,
+          "one_year": -21.22
+        },
+        "CDNS": {
+          "last": 374.06,
+          "daily": 0.81,
+          "weekly": 0.25,
+          "one_month": -0.57,
+          "ytd": 20.51,
+          "one_year": 15.71
+        }
+      }
+    },
+    "foundry_packaging": {
+      "name": "Foundry & Advanced Packaging",
+      "layer": "Silicon",
+      "thesis": "TSM manufactures all leading AI chips; AMKR/ASX compete for CoWoS packaging",
+      "aggregate": {
+        "daily": 2.6,
+        "weekly": -1.42,
+        "one_month": 8.98,
+        "ytd": 107.69,
+        "one_year": 177.19
+      },
+      "tickers": {
+        "TSM": {
+          "last": 436.98,
+          "daily": 1.02,
+          "weekly": 0.65,
+          "one_month": 5.5,
+          "ytd": 37.43,
+          "one_year": 93.9
+        },
+        "AMKR": {
+          "last": 66.91,
+          "daily": 2.42,
+          "weekly": -3.93,
+          "one_month": 3.02,
+          "ytd": 56.19,
+          "one_year": 205.03
+        },
+        "ASX": {
+          "last": 39.93,
+          "daily": 0.71,
+          "weekly": -3.67,
+          "one_month": 18.52,
+          "ytd": 139.22,
+          "one_year": 294.25
+        },
+        "UMC": {
+          "last": 24.73,
+          "daily": 5.6,
+          "weekly": 2.55,
+          "one_month": 27.74,
+          "ytd": 220.98,
+          "one_year": 229.39
+        },
+        "GFS": {
+          "last": 67.97,
+          "daily": 3.24,
+          "weekly": -2.68,
+          "one_month": -9.88,
+          "ytd": 84.62,
+          "one_year": 63.39
+        }
+      }
+    },
+    "power_semis": {
+      "name": "Power Semiconductors",
+      "layer": "Silicon",
+      "thesis": "48V direct-to-chip power delivery, GaN server PSUs, SiC power conversion for AI load",
+      "aggregate": {
+        "daily": 0.81,
+        "weekly": -3.59,
+        "one_month": -17.52,
+        "ytd": 87.9,
+        "one_year": 139.59
+      },
+      "tickers": {
+        "MPWR": {
+          "last": 1315.51,
+          "daily": 3.35,
+          "weekly": 2.12,
+          "one_month": -11.04,
+          "ytd": 41.0,
+          "one_year": 74.0
+        },
+        "VICR": {
+          "last": 263.16,
+          "daily": 2.26,
+          "weekly": -6.99,
+          "one_month": -2.91,
+          "ytd": 125.19,
+          "one_year": 476.6
+        },
+        "NVTS": {
+          "last": 13.36,
+          "daily": -4.5,
+          "weekly": -7.61,
+          "one_month": -46.73,
+          "ytd": 59.43,
+          "one_year": 103.04
+        },
+        "WOLF": {
+          "last": 35.86,
+          "daily": -0.39,
+          "weekly": -10.35,
+          "one_month": -34.87,
+          "ytd": 89.43,
+          "one_year": 62.26
+        },
+        "ON": {
+          "last": 93.79,
+          "daily": 2.95,
+          "weekly": 2.82,
+          "one_month": -20.02,
+          "ytd": 65.41,
+          "one_year": 62.77
+        },
+        "STM": {
+          "last": 68.54,
+          "daily": 1.87,
+          "weekly": 0.28,
+          "one_month": -2.97,
+          "ytd": 151.42,
+          "one_year": 113.0
+        },
+        "IFNNY": {
+          "last": 81.53,
+          "daily": 0.14,
+          "weekly": -5.4,
+          "one_month": -4.1,
+          "ytd": 83.39,
+          "one_year": 85.46
+        }
+      }
+    },
+    "ai_servers": {
+      "name": "AI Servers & Systems",
+      "layer": "Infrastructure",
+      "thesis": "GPU server rack integrators and ODMs competing for the same cluster deployments",
+      "aggregate": {
+        "daily": 8.65,
+        "weekly": 11.27,
+        "one_month": -0.72,
+        "ytd": 124.86,
+        "one_year": 146.19
+      },
+      "tickers": {
+        "SMCI": {
+          "last": 28.17,
+          "daily": 7.31,
+          "weekly": 3.49,
+          "one_month": -32.35,
+          "ytd": -9.01,
+          "one_year": -42.64
+        },
+        "DELL": {
+          "last": 431.97,
+          "daily": 3.52,
+          "weekly": 9.55,
+          "one_month": 9.53,
+          "ytd": 240.53,
+          "one_year": 252.55
+        },
+        "HPE": {
+          "last": 44.67,
+          "daily": 2.76,
+          "weekly": 8.34,
+          "one_month": -8.94,
+          "ytd": 86.55,
+          "one_year": 119.02
+        },
+        "CLS": {
+          "last": 360.74,
+          "daily": 4.54,
+          "weekly": 7.3,
+          "one_month": -2.95,
+          "ytd": 19.29,
+          "one_year": 131.69
+        },
+        "PENG": {
+          "last": 78.47,
+          "daily": 25.13,
+          "weekly": 27.66,
+          "one_month": 31.09,
+          "ytd": 286.93,
+          "one_year": 270.32
+        }
+      }
+    },
+    "dc_compute": {
+      "name": "Data Center & AI Compute",
+      "layer": "Infrastructure",
+      "thesis": "Colocation real estate (EQIX/DLR) vs GPU-as-a-service compute rental (CRWV/IREN/CORZ)",
+      "aggregate": {
+        "daily": 5.0,
+        "weekly": 6.73,
+        "one_month": -10.26,
+        "ytd": 22.15,
+        "one_year": 44.65
+      },
+      "tickers": {
+        "EQIX": {
+          "last": 1015.97,
+          "daily": -0.68,
+          "weekly": 1.39,
+          "one_month": -6.01,
+          "ytd": 34.35,
+          "one_year": 35.4
+        },
+        "DLR": {
+          "last": 176.3,
+          "daily": 0.8,
+          "weekly": 1.73,
+          "one_month": -4.99,
+          "ytd": 15.26,
+          "one_year": 6.2
+        },
+        "CRWV": {
+          "last": 90.0,
+          "daily": 7.75,
+          "weekly": 10.1,
+          "one_month": -10.35,
+          "ytd": 13.46,
+          "one_year": -40.57
+        },
+        "IREN": {
+          "last": 43.005,
+          "daily": 8.01,
+          "weekly": 10.78,
+          "one_month": -20.87,
+          "ytd": 0.71,
+          "one_year": 154.62
+        },
+        "CORZ": {
+          "last": 23.5,
+          "daily": 9.1,
+          "weekly": 9.66,
+          "one_month": -9.09,
+          "ytd": 46.97,
+          "one_year": 67.62
+        }
+      }
+    },
+    "dc_power_cooling": {
+      "name": "DC Power & Cooling",
+      "layer": "Infrastructure",
+      "thesis": "Data center UPS, power distribution, thermal management, and on-site fuel cell power",
+      "aggregate": {
+        "daily": -0.23,
+        "weekly": -0.04,
+        "one_month": 1.05,
+        "ytd": 87.17,
+        "one_year": 370.81
+      },
+      "tickers": {
+        "VRT": {
+          "last": 317.81,
+          "daily": 4.0,
+          "weekly": 5.75,
+          "one_month": 5.78,
+          "ytd": 81.06,
+          "one_year": 152.73
+        },
+        "ETN": {
+          "last": 399.56,
+          "daily": 0.98,
+          "weekly": 0.26,
+          "one_month": 0.91,
+          "ytd": 22.79,
+          "one_year": 13.23
+        },
+        "BE": {
+          "last": 254.29,
+          "daily": -5.67,
+          "weekly": -6.13,
+          "one_month": -3.54,
+          "ytd": 157.67,
+          "one_year": 946.46
+        }
+      }
+    },
+    "grid_infra": {
+      "name": "Grid Infrastructure",
+      "layer": "Infrastructure",
+      "thesis": "Transformers, grid construction, and electrical hardware for AI power buildout",
+      "aggregate": {
+        "daily": 1.54,
+        "weekly": -1.1,
+        "one_month": -0.71,
+        "ytd": 36.1,
+        "one_year": 59.92
+      },
+      "tickers": {
+        "GEV": {
+          "last": 1070.99,
+          "daily": -0.57,
+          "weekly": -3.78,
+          "one_month": 14.77,
+          "ytd": 57.89,
+          "one_year": 102.62
+        },
+        "PWR": {
+          "last": 666.33,
+          "daily": 1.45,
+          "weekly": -0.3,
+          "one_month": -4.13,
+          "ytd": 51.6,
+          "one_year": 76.63
+        },
+        "EME": {
+          "last": 768.98,
+          "daily": 0.08,
+          "weekly": -0.73,
+          "one_month": -5.93,
+          "ytd": 20.54,
+          "one_year": 42.32
+        },
+        "MTZ": {
+          "last": 382.9,
+          "daily": 6.7,
+          "weekly": 2.54,
+          "one_month": 5.22,
+          "ytd": 68.2,
+          "one_year": 127.59
+        },
+        "HUBB": {
+          "last": 480.5,
+          "daily": 0.34,
+          "weekly": -1.35,
+          "one_month": 0.77,
+          "ytd": 4.37,
+          "one_year": 17.89
+        },
+        "AMSC": {
+          "last": 36.0,
+          "daily": 1.27,
+          "weekly": -2.99,
+          "one_month": -14.97,
+          "ytd": 14.0,
+          "one_year": -7.53
+        }
+      }
+    },
+    "power_gen": {
+      "name": "Power Generation",
+      "layer": "Infrastructure",
+      "thesis": "Independent power producers competing for data center PPA contracts",
+      "aggregate": {
+        "daily": 0.34,
+        "weekly": 1.54,
+        "one_month": 1.86,
+        "ytd": -15.77,
+        "one_year": -3.77
+      },
+      "tickers": {
+        "VST": {
+          "last": 154.82,
+          "daily": -0.58,
+          "weekly": 2.5,
+          "one_month": 4.22,
+          "ytd": -6.04,
+          "one_year": -18.17
+        },
+        "NRG": {
+          "last": 137.48,
+          "daily": -0.38,
+          "weekly": 0.57,
+          "one_month": 6.41,
+          "ytd": -16.75,
+          "one_year": -8.08
+        },
+        "CEG": {
+          "last": 244.52,
+          "daily": 2.01,
+          "weekly": 2.2,
+          "one_month": -4.05,
+          "ytd": -33.04,
+          "one_year": -21.43
+        },
+        "TLN": {
+          "last": 367.88,
+          "daily": 0.33,
+          "weekly": 0.88,
+          "one_month": 0.86,
+          "ytd": -7.27,
+          "one_year": 32.59
+        }
+      }
+    },
+    "nuclear": {
+      "name": "Nuclear Supply Chain",
+      "layer": "Infrastructure",
+      "thesis": "Uranium mining, enrichment, reactor components, and next-gen micro-reactors",
+      "aggregate": {
+        "daily": -0.59,
+        "weekly": -4.69,
+        "one_month": -10.2,
+        "ytd": -26.35,
+        "one_year": -11.33
+      },
+      "tickers": {
+        "CCJ": {
+          "last": 94.73,
+          "daily": 0.06,
+          "weekly": -1.87,
+          "one_month": -8.42,
+          "ytd": -3.89,
+          "one_year": 31.94
+        },
+        "OKLO": {
+          "last": 47.28,
+          "daily": -1.29,
+          "weekly": -9.7,
+          "one_month": -18.61,
+          "ytd": -39.23,
+          "one_year": -11.66
+        },
+        "LEU": {
+          "last": 166.47,
+          "daily": 0.5,
+          "weekly": 2.68,
+          "one_month": 2.9,
+          "ytd": -38.91,
+          "one_year": -4.25
+        },
+        "SMR": {
+          "last": 8.76,
+          "daily": -2.23,
+          "weekly": -10.25,
+          "one_month": -16.57,
+          "ytd": -46.29,
+          "one_year": -75.03
+        },
+        "NNE": {
+          "last": 18.96,
+          "daily": 0.45,
+          "weekly": -5.34,
+          "one_month": -19.52,
+          "ytd": -31.33,
+          "one_year": -43.77
+        },
+        "BWXT": {
+          "last": 184.11,
+          "daily": -1.06,
+          "weekly": -3.64,
+          "one_month": -0.99,
+          "ytd": 1.52,
+          "one_year": 34.78
+        }
+      }
+    },
+    "optical": {
+      "name": "Optical Components",
+      "layer": "Connectivity",
+      "thesis": "Optical transceivers, lasers, and fiber supply for AI cluster networking",
+      "aggregate": {
+        "daily": 0.35,
+        "weekly": -4.92,
+        "one_month": -16.44,
+        "ytd": 109.73,
+        "one_year": 375.92
+      },
+      "tickers": {
+        "COHR": {
+          "last": 317.05,
+          "daily": 0.93,
+          "weekly": -4.89,
+          "one_month": -15.9,
+          "ytd": 63.15,
+          "one_year": 250.72
+        },
+        "LITE": {
+          "last": 707.1,
+          "daily": 1.17,
+          "weekly": -2.91,
+          "one_month": -18.13,
+          "ytd": 83.13,
+          "one_year": 674.39
+        },
+        "GLW": {
+          "last": 184.03,
+          "daily": -0.73,
+          "weekly": -6.48,
+          "one_month": 3.63,
+          "ytd": 103.66,
+          "one_year": 252.82
+        },
+        "AAOI": {
+          "last": 114.44,
+          "daily": 0.03,
+          "weekly": -5.38,
+          "one_month": -35.34,
+          "ytd": 188.99,
+          "one_year": 325.74
+        }
+      }
+    },
+    "ai_networking": {
+      "name": "AI Networking Hardware",
+      "layer": "Connectivity",
+      "thesis": "Ethernet switches, SerDes, and optical systems for GPU-to-GPU bandwidth",
+      "aggregate": {
+        "daily": 4.34,
+        "weekly": 4.97,
+        "one_month": 1.95,
+        "ytd": 65.99,
+        "one_year": 183.36
+      },
+      "tickers": {
+        "ANET": {
+          "last": 181.05,
+          "daily": 8.76,
+          "weekly": 13.16,
+          "one_month": 17.36,
+          "ytd": 35.52,
+          "one_year": 75.11
+        },
+        "CSCO": {
+          "last": 113.82,
+          "daily": 1.82,
+          "weekly": 1.38,
+          "one_month": -6.08,
+          "ytd": 51.06,
+          "one_year": 69.38
+        },
+        "CRDO": {
+          "last": 258.69,
+          "daily": 4.99,
+          "weekly": 6.94,
+          "one_month": 25.04,
+          "ytd": 80.62,
+          "one_year": 177.09
+        },
+        "CIEN": {
+          "last": 440.97,
+          "daily": 5.27,
+          "weekly": 4.38,
+          "one_month": -9.68,
+          "ytd": 79.21,
+          "one_year": 460.6
+        },
+        "NOK": {
+          "last": 11.95,
+          "daily": 0.84,
+          "weekly": -0.99,
+          "one_month": -16.9,
+          "ytd": 83.56,
+          "one_year": 134.63
+        }
+      }
+    },
+    "hyperscalers": {
+      "name": "Hyperscalers",
+      "layer": "Platform",
+      "thesis": "Cloud AI workloads, model training at scale, AI-as-a-service distribution",
+      "aggregate": {
+        "daily": -1.45,
+        "weekly": 0.65,
+        "one_month": -2.23,
+        "ytd": -0.78,
+        "one_year": 20.25
+      },
+      "tickers": {
+        "MSFT": {
+          "last": 383.34,
+          "daily": -1.41,
+          "weekly": -1.83,
+          "one_month": -8.0,
+          "ytd": -18.58,
+          "one_year": -22.19
+        },
+        "GOOGL": {
+          "last": 361.92,
+          "daily": -1.39,
+          "weekly": 0.56,
+          "one_month": -1.73,
+          "ytd": 14.99,
+          "one_year": 108.16
+        },
+        "META": {
+          "last": 603.12,
+          "daily": -2.02,
+          "weekly": 3.47,
+          "one_month": 1.8,
+          "ytd": -7.11,
+          "one_year": -16.04
+        },
+        "AMZN": {
+          "last": 243.62,
+          "daily": -0.96,
+          "weekly": 0.39,
+          "one_month": -0.98,
+          "ytd": 7.56,
+          "one_year": 11.06
+        }
+      }
+    },
+    "ai_data_platforms": {
+      "name": "AI Data Platforms",
+      "layer": "Platform",
+      "thesis": "Data infrastructure and observability budget inside enterprise AI teams",
+      "aggregate": {
+        "daily": -0.24,
+        "weekly": 0.69,
+        "one_month": 4.96,
+        "ytd": 18.4,
+        "one_year": 23.12
+      },
+      "tickers": {
+        "SNOW": {
+          "last": 261.31,
+          "daily": -0.54,
+          "weekly": 0.45,
+          "one_month": 9.67,
+          "ytd": 20.58,
+          "one_year": 16.92
+        },
+        "MDB": {
+          "last": 359.4,
+          "daily": -0.53,
+          "weekly": 1.27,
+          "one_month": 2.47,
+          "ytd": -10.07,
+          "one_year": 72.04
+        },
+        "DDOG": {
+          "last": 261.09,
+          "daily": 1.67,
+          "weekly": 0.28,
+          "one_month": 11.52,
+          "ytd": 95.18,
+          "one_year": 78.9
+        },
+        "ESTC": {
+          "last": 60.08,
+          "daily": 1.04,
+          "weekly": 3.51,
+          "one_month": -2.77,
+          "ytd": -17.2,
+          "one_year": -30.2
+        },
+        "DT": {
+          "last": 43.84,
+          "daily": -2.82,
+          "weekly": -2.08,
+          "one_month": 3.91,
+          "ytd": 3.52,
+          "one_year": -22.08
+        }
+      }
+    },
+    "quantum": {
+      "name": "Quantum Computing",
+      "layer": "Platform",
+      "thesis": "Next-generation compute paradigm; government and enterprise quantum contracts",
+      "aggregate": {
+        "daily": 0.77,
+        "weekly": -5.74,
+        "one_month": -16.96,
+        "ytd": -17.48,
+        "one_year": -9.36
+      },
+      "tickers": {
+        "IONQ": {
+          "last": 45.08,
+          "daily": -0.62,
+          "weekly": -8.22,
+          "one_month": -20.61,
+          "ytd": -3.61,
+          "one_year": 0.24
+        },
+        "RGTI": {
+          "last": 16.92,
+          "daily": 2.24,
+          "weekly": -5.69,
+          "one_month": -18.18,
+          "ytd": -28.31,
+          "one_year": 26.46
+        },
+        "QUBT": {
+          "last": 8.75,
+          "daily": 0.69,
+          "weekly": -3.31,
+          "one_month": -12.1,
+          "ytd": -20.53,
+          "one_year": -54.78
+        }
+      }
+    },
+    "ai_defense": {
+      "name": "AI Defense & Government",
+      "layer": "Applications",
+      "thesis": "Government and DoD AI contracts; defense intelligence and mission systems",
+      "aggregate": {
+        "daily": -1.41,
+        "weekly": -0.81,
+        "one_month": -10.96,
+        "ytd": -21.04,
+        "one_year": -22.68
+      },
+      "tickers": {
+        "PLTR": {
+          "last": 132.22,
+          "daily": -1.6,
+          "weekly": 2.26,
+          "one_month": -2.44,
+          "ytd": -21.23,
+          "one_year": -5.36
+        },
+        "BAH": {
+          "last": 62.68,
+          "daily": -1.0,
+          "weekly": 0.37,
+          "one_month": -20.54,
+          "ytd": -25.04,
+          "one_year": -40.16
+        },
+        "LDOS": {
+          "last": 107.18,
+          "daily": -1.28,
+          "weekly": -1.53,
+          "one_month": -13.56,
+          "ytd": -41.23,
+          "one_year": -33.18
+        },
+        "SAIC": {
+          "last": 113.24,
+          "daily": -0.38,
+          "weekly": 2.05,
+          "one_month": -0.97,
+          "ytd": 12.68,
+          "one_year": -1.97
+        },
+        "CACI": {
+          "last": 493.78,
+          "daily": -0.72,
+          "weekly": -1.8,
+          "one_month": -7.08,
+          "ytd": -8.12,
+          "one_year": 1.0
+        },
+        "BBAI": {
+          "last": 3.31,
+          "daily": -3.5,
+          "weekly": -6.23,
+          "one_month": -21.19,
+          "ytd": -43.32,
+          "one_year": -56.39
+        }
+      }
+    },
+    "enterprise_ai": {
+      "name": "Enterprise AI",
+      "layer": "Applications",
+      "thesis": "Incumbent SaaS embedding AI into enterprise workflows; same CFO/CIO budget",
+      "aggregate": {
+        "daily": -2.28,
+        "weekly": -0.02,
+        "one_month": -12.59,
+        "ytd": -34.9,
+        "one_year": -46.19
+      },
+      "tickers": {
+        "CRM": {
+          "last": 166.58,
+          "daily": -1.73,
+          "weekly": 0.28,
+          "one_month": -10.05,
+          "ytd": -33.98,
+          "one_year": -38.61
+        },
+        "NOW": {
+          "last": 107.78,
+          "daily": -2.66,
+          "weekly": 1.37,
+          "one_month": -4.15,
+          "ytd": -26.9,
+          "one_year": -47.32
+        },
+        "WDAY": {
+          "last": 137.88,
+          "daily": -4.02,
+          "weekly": 1.83,
+          "one_month": -4.44,
+          "ytd": -33.0,
+          "one_year": -42.66
+        },
+        "ADBE": {
+          "last": 220.94,
+          "daily": -0.27,
+          "weekly": 0.56,
+          "one_month": -12.13,
+          "ytd": -33.71,
+          "one_year": -42.2
+        },
+        "INTU": {
+          "last": 272.1,
+          "daily": -3.23,
+          "weekly": -1.18,
+          "one_month": -8.31,
+          "ytd": -56.56,
+          "one_year": -64.9
+        },
+        "ORCL": {
+          "last": 140.49,
+          "daily": -0.78,
+          "weekly": 0.16,
+          "one_month": -34.25,
+          "ytd": -27.77,
+          "one_year": -39.49
+        },
+        "SAP": {
+          "last": 157.42,
+          "daily": -3.29,
+          "weekly": -3.18,
+          "one_month": -14.8,
+          "ytd": -32.4,
+          "one_year": -48.13
+        }
+      }
+    },
+    "cybersecurity_ai": {
+      "name": "Cybersecurity AI",
+      "layer": "Applications",
+      "thesis": "AI-driven endpoint, network, SASE, and identity security platforms",
+      "aggregate": {
+        "daily": -1.9,
+        "weekly": 0.95,
+        "one_month": 13.49,
+        "ytd": 50.03,
+        "one_year": 26.84
+      },
+      "tickers": {
+        "CRWD": {
+          "last": 191.12,
+          "daily": -1.8,
+          "weekly": -1.47,
+          "one_month": 13.93,
+          "ytd": 68.54,
+          "one_year": 50.57
+        },
+        "PANW": {
+          "last": 320.59,
+          "daily": -4.88,
+          "weekly": -7.89,
+          "one_month": 17.84,
+          "ytd": 78.73,
+          "one_year": 57.16
+        },
+        "S": {
+          "last": 17.81,
+          "daily": -1.93,
+          "weekly": 1.71,
+          "one_month": 11.66,
+          "ytd": 21.65,
+          "one_year": -3.78
+        },
+        "FTNT": {
+          "last": 156.71,
+          "daily": -1.24,
+          "weekly": 0.29,
+          "one_month": 8.31,
+          "ytd": 101.22,
+          "one_year": 45.72
+        },
+        "ZS": {
+          "last": 143.55,
+          "daily": -3.98,
+          "weekly": -2.57,
+          "one_month": 9.76,
+          "ytd": -34.92,
+          "one_year": -54.06
+        },
+        "NET": {
+          "last": 273.4,
+          "daily": 1.7,
+          "weekly": 12.78,
+          "one_month": 9.31,
+          "ytd": 39.48,
+          "one_year": 41.8
+        },
+        "OKTA": {
+          "last": 146.77,
+          "daily": -1.15,
+          "weekly": 3.78,
+          "one_month": 23.63,
+          "ytd": 75.48,
+          "one_year": 50.49
+        }
+      }
+    },
+    "robotics": {
+      "name": "Robotics & Physical AI",
+      "layer": "Applications",
+      "thesis": "Embodied AI; industrial/surgical robots, machine vision, autonomous systems",
+      "aggregate": {
+        "daily": -1.06,
+        "weekly": -3.47,
+        "one_month": -0.12,
+        "ytd": 24.4,
+        "one_year": 80.7
+      },
+      "tickers": {
+        "ISRG": {
+          "last": 415.1,
+          "daily": -2.86,
+          "weekly": -2.56,
+          "one_month": -1.65,
+          "ytd": -26.14,
+          "one_year": -21.28
+        },
+        "TER": {
+          "last": 351.57,
+          "daily": 2.47,
+          "weekly": -4.75,
+          "one_month": -1.78,
+          "ytd": 69.52,
+          "one_year": 282.21
+        },
+        "ABBNY": {
+          "last": 103.3,
+          "daily": 0.33,
+          "weekly": -2.46,
+          "one_month": 1.77,
+          "ytd": 41.87,
+          "one_year": 77.85
+        },
+        "ROK": {
+          "last": 463.61,
+          "daily": -1.13,
+          "weekly": -1.72,
+          "one_month": 3.78,
+          "ytd": 17.09,
+          "one_year": 39.04
+        },
+        "FANUY": {
+          "last": 20.57,
+          "daily": -3.88,
+          "weekly": -7.51,
+          "one_month": -9.18,
+          "ytd": 4.42,
+          "one_year": 59.95
+        },
+        "CGNX": {
+          "last": 64.11,
+          "daily": -0.16,
+          "weekly": -5.44,
+          "one_month": 5.41,
+          "ytd": 74.09,
+          "one_year": 94.84
+        },
+        "TSLA": {
+          "last": 394.06,
+          "daily": -2.19,
+          "weekly": 0.16,
+          "one_month": 0.78,
+          "ytd": -10.05,
+          "one_year": 32.32
+        }
+      }
+    }
+  },
+  "layer_theme_ids": {
+    "Silicon": [
+      "ai_accelerators",
+      "custom_silicon",
+      "ai_memory",
+      "semis_equipment",
+      "eda_ip",
+      "foundry_packaging",
+      "power_semis"
+    ],
+    "Infrastructure": [
+      "ai_servers",
+      "dc_compute",
+      "dc_power_cooling",
+      "grid_infra",
+      "power_gen",
+      "nuclear"
+    ],
+    "Connectivity": [
+      "optical",
+      "ai_networking"
+    ],
+    "Platform": [
+      "hyperscalers",
+      "ai_data_platforms",
+      "quantum"
+    ],
+    "Applications": [
+      "ai_defense",
+      "enterprise_ai",
+      "cybersecurity_ai",
+      "robotics"
+    ]
+  }
+};
+
+let currentLayer = null;
+let currentTheme = null;
+
+function pct(v, d=2) {
+  if (v == null) return '<span class="neu">—</span>';
+  const sign = v >= 0 ? '+' : '';
+  const cls  = v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neu');
+  return `<span class="${cls}">${sign}${v.toFixed(d)}%</span>`;
+}
+
+function heatColor(val, cap) {
+  if (val == null) return ['#e5e7eb', '#6b7280'];
+  const t = Math.max(-1, Math.min(1, val / (cap || 1)));
+  let r, g, b;
+  if (t >= 0) {
+    r = Math.round(250 - t*(250-21));
+    g = Math.round(250 - t*(250-128));
+    b = Math.round(250 - t*(250-61));
+  } else {
+    const tt = -t;
+    r = Math.round(250 - tt*(250-185));
+    g = Math.round(250 - tt*(250-28));
+    b = Math.round(250 - tt*(250-28));
+  }
+  const bright = (0.299*r + 0.587*g + 0.114*b) / 255;
+  const fg = bright > 0.60 ? '#1f2937' : '#ffffff';
+  return [`rgb(${r},${g},${b})`, fg];
+}
+
+function resetAll() {
+  currentLayer = null; currentTheme = null;
+  document.getElementById('theme-panel').style.display  = 'none';
+  document.getElementById('ticker-panel').style.display = 'none';
+  document.getElementById('bc-layer').style.display = 'none';
+  document.getElementById('bc-theme').style.display = 'none';
+  document.querySelectorAll('.layer-card').forEach(c => c.classList.remove('active'));
+}
+
+function showLayer(layerName) {
+  currentLayer = layerName; currentTheme = null;
+  document.getElementById('ticker-panel').style.display = 'none';
+  document.getElementById('bc-theme').style.display = 'none';
+  document.querySelectorAll('.layer-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.layer === layerName);
+  });
+  // breadcrumb
+  document.getElementById('bc-layer').style.display = '';
+  document.getElementById('bc-layer-name').textContent = layerName;
+
+  const themeIds = DATA.layer_theme_ids[layerName] || [];
+  const vals = themeIds.map(id => DATA.themes[id]?.aggregate?.daily).filter(v => v != null);
+  const cap  = vals.length ? Math.max(...vals.map(Math.abs)) : 1;
+
+  const grid = document.getElementById('theme-grid');
+  grid.innerHTML = themeIds.map(id => {
+    const t   = DATA.themes[id];
+    const val = t?.aggregate?.daily;
+    const [bg, fg] = heatColor(val, cap);
+    const sign = (val||0) >= 0 ? '+' : '';
+    const valStr = val != null ? `${sign}${val.toFixed(2)}%` : '—';
+    return `<div class="theme-card" data-tid="${id}"
+      style="background:${bg};color:${fg}"
+      onclick="showTickers('${id}')">
+      <div class="theme-name">${t.name}</div>
+      <div class="theme-ret">${valStr}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('theme-panel-title').textContent = layerName + ' — Themes';
+  document.getElementById('theme-panel').style.display = 'block';
+}
+
+function showTickers(themeId) {
+  currentTheme = themeId;
+  const t = DATA.themes[themeId];
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('active', c.dataset.tid === themeId));
+  // breadcrumb
+  document.getElementById('bc-theme').style.display = '';
+  document.getElementById('bc-theme-name').textContent = t.name;
+
+  document.getElementById('ticker-title').textContent  = t.name;
+  document.getElementById('ticker-thesis').textContent = t.thesis;
+
+  let rows = `<tr>
+    <th>Ticker</th><th>Last</th><th>1D %</th><th>1W %</th>
+    <th>1M %</th><th>YTD %</th><th>1Y %</th>
+  </tr>`;
+  for (const [ticker, d] of Object.entries(t.tickers)) {
+    if (!d) {
+      rows += `<tr><td>${ticker}</td><td colspan="6" class="neu">data unavailable</td></tr>`;
+      continue;
+    }
+    const fmt = v => v >= 10000 ? v.toLocaleString('en',{maximumFractionDigits:0})
+                   : v >= 10    ? v.toFixed(2)
+                   : v.toFixed(4);
+    rows += `<tr>
+      <td>${ticker}</td>
+      <td>${fmt(d.last)}</td>
+      <td>${pct(d.daily)}</td>
+      <td>${pct(d.weekly)}</td>
+      <td>${pct(d.one_month)}</td>
+      <td>${pct(d.ytd)}</td>
+      <td>${pct(d.one_year)}</td>
+    </tr>`;
+  }
+  // Aggregate row
+  const agg = t.aggregate;
+  rows += `<tr style="background:#f0f4f8;font-weight:700">
+    <td>AGGREGATE</td><td>—</td>
+    <td>${pct(agg.daily)}</td>
+    <td>${pct(agg.weekly)}</td>
+    <td>${pct(agg.one_month)}</td>
+    <td>${pct(agg.ytd)}</td>
+    <td>${pct(agg.one_year)}</td>
+  </tr>`;
+  document.getElementById('ticker-table').innerHTML = rows;
+  document.getElementById('ticker-panel').style.display = 'block';
+}
+
+// ── Init: render layer cards ────────────────────────────────────────────────
+(function init() {
+  const grid = document.getElementById('layer-grid');
+  const layerVals = Object.values(DATA.layers).map(l => l.daily).filter(v => v != null);
+  const cap = layerVals.length ? Math.max(...layerVals.map(Math.abs)) : 1;
+
+  grid.innerHTML = Object.entries(DATA.layers).map(([layer, agg]) => {
+    const val = agg.daily;
+    const [bg, fg] = heatColor(val, cap);
+    const sign = (val||0) >= 0 ? '+' : '';
+    const valStr = val != null ? `${sign}${val.toFixed(2)}%` : '—';
+    return `<div class="layer-card" data-layer="${layer}" onclick="showLayer('${layer}')"
+      style="border-color:#e5e7eb">
+      <div class="layer-name">${layer}</div>
+      <div class="layer-ret" style="color:${val > 0 ? '#16a34a' : val < 0 ? '#dc2626' : '#6b7280'}">${valStr}</div>
+    </div>`;
+  }).join('');
+})();
+</script>
+</body>
+</html>
