@@ -8,12 +8,14 @@ def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = F
     """Single Groq call. Returns cleaned HTML string (or raw JSON string if json_mode)."""
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     kwargs = dict(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system},
             {"role": "user",   "content": user},
         ],
-        max_tokens=max_tokens,
+        # gpt-oss is a reasoning model — reasoning tokens count toward the limit
+        max_tokens=max_tokens + 1000,
+        reasoning_effort="low",
     )
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
