@@ -4,6 +4,7 @@ Email layout (3 levels in one scroll):
   L1 — Layer summary row  (5 cells: Silicon / Infra / Connectivity / Platform / Apps)
   L2 — Theme heat map     (22 colour-coded cells, grouped by layer)
   L3 — Drill-down         (top 3 themes by |1D return|, ticker table + LLM commentary)
+  L4 — Market recap       (LLM summary of Edward Jones daily market update + link)
   Footer — link to interactive dashboard
 """
 import json
@@ -19,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.themes import THEME_BY_ID
 from data.fetcher import fetch_theme_returns, layer_aggregates, top_movers
+from data.news import EJ_RECAP_URL, fetch_ej_daily_recap
 from shared.html import _pct, _price, _md_to_html, layer_summary_row, theme_heatmap, theme_returns_table, _TD, _TD_L, _TH, _TH_L
 from shared.llm import groq_call
 from shared.email_sender import send_email
@@ -65,6 +67,29 @@ def _drilldown_commentary(movers: list, theme_returns: dict) -> dict:
         return {}
 
 
+_RECAP_SYSTEM = """You are a terse markets editor. Summarise the Edward Jones daily market update you receive.
+
+Output 4–6 bullet points, each one sentence, covering:
+- How major US indexes moved and why
+- Key earnings, economic data, or central-bank news
+- Bonds, oil, currencies, or overseas markets if mentioned
+
+Rules:
+- Keep specific numbers (index moves, yields, prices, data prints)
+- Ignore author names, disclaimers, and source lines
+- Output valid JSON only: {"bullets": ["...", "..."]}
+- No markdown, no HTML in the JSON values"""
+
+
+def _market_recap_summary(recap: dict) -> list:
+    try:
+        raw = groq_call(_RECAP_SYSTEM, recap["text"][:12000], max_tokens=600, json_mode=True)
+        return json.loads(raw).get("bullets", [])
+    except Exception as e:
+        logger.warning(f"LLM market recap failed: {e}")
+        return []
+
+
 # ── HTML builders ─────────────────────────────────────────────────────────────
 
 def _drilldown_section(movers: list, theme_returns: dict, commentary: dict) -> str:
@@ -95,6 +120,27 @@ def _drilldown_section(movers: list, theme_returns: dict, commentary: dict) -> s
     return html
 
 
+def _market_recap_section(recap: dict | None, bullets: list) -> str:
+    html = '<h3 style="color:#1a3a5c;margin-top:24px">📰 Market Recap — Edward Jones</h3>'
+    html += (
+        '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px;'
+        'padding:14px 16px;margin-bottom:12px;">'
+    )
+    if recap and bullets:
+        html += f'<div style="font-size:11px;color:#9ca3af;margin-bottom:6px">{recap["heading"]}</div>'
+        html += '<ul style="font-size:13px;margin:0;padding-left:18px;color:#374151">'
+        html += "".join(f"<li style=\"margin-bottom:4px\">{b}</li>" for b in bullets)
+        html += '</ul>'
+    else:
+        html += '<p style="font-size:13px;margin:0;color:#6b7280">Summary unavailable today.</p>'
+    html += (
+        f'<p style="font-size:12px;margin:10px 0 0;">'
+        f'<a href="{EJ_RECAP_URL}" style="color:#1a3a5c;font-weight:600;">→ Read the full daily market recap</a></p>'
+        '</div>'
+    )
+    return html
+
+
 def build_email(theme_returns: dict, date_str: str) -> str:
     layer_aggs = layer_aggregates(theme_returns)
     movers     = top_movers(theme_returns, n=3, key="daily")
@@ -103,6 +149,9 @@ def build_email(theme_returns: dict, date_str: str) -> str:
     l1    = layer_summary_row(layer_aggs, key="daily")
     l2    = theme_heatmap(theme_returns, key="daily", cols=4)
     l3    = _drilldown_section(movers, theme_returns, commentary)
+
+    recap = fetch_ej_daily_recap()
+    l4    = _market_recap_section(recap, _market_recap_summary(recap) if recap else [])
 
     return f"""<html>
 <body style="font-family:Arial,sans-serif;max-width:720px;margin:auto;color:#222;line-height:1.6;">
@@ -121,6 +170,8 @@ def build_email(theme_returns: dict, date_str: str) -> str:
     {l2}
 
     {l3}
+
+    {l4}
 
     <hr style="margin-top:28px;border:none;border-top:1px solid #e5e7eb;">
     <p style="font-size:12px;color:#9ca3af;margin:12px 0 0;">

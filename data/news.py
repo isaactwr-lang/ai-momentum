@@ -3,9 +3,10 @@
 Each scraper returns a list of plain-text snippets (max ~300 chars each).
 Theme routing: which source feeds which theme ids.
 """
+import json
 import logging
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -117,3 +118,47 @@ def fetch_all_news() -> Dict[str, List[str]]:
             theme_snippets.setdefault(tid, []).extend(snippets)
     # Deduplicate and cap per theme
     return {tid: list(dict.fromkeys(snips))[:12] for tid, snips in theme_snippets.items()}
+
+
+# ── Edward Jones daily market recap (daily brief) ─────────────────────────────
+
+EJ_RECAP_URL = "https://www.edwardjones.com/us-en/market-news-insights/stock-market-news/daily-market-recap"
+
+
+def fetch_ej_daily_recap() -> Optional[Dict[str, str]]:
+    """Latest Edward Jones market update → {"heading": ..., "text": ...}, or None.
+
+    Page content is embedded as JSON widgets: the newest update sits in the
+    "rich-text-editor" block; prior days live in the "accordion-component".
+    """
+    try:
+        r = requests.get(EJ_RECAP_URL, headers=_HEADERS, timeout=15)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "lxml")
+
+        def _widget(name: str):
+            el = soup.find(attrs={"data-widget": name})
+            return json.loads(el.script.string) if el and el.script else None
+
+        def _text(html: str) -> str:
+            lines = BeautifulSoup(html, "lxml").get_text(separator="\n").splitlines()
+            return "\n".join(l.strip() for l in lines if l.strip())
+
+        rte = _widget("rich-text-editor")
+        if rte and rte.get("rteContent"):
+            text = _text(rte["rteContent"])
+            heading, _, body = text.partition("\n")
+            if len(body) > 200:
+                return {"heading": heading, "text": body}
+
+        acc = _widget("accordion-component")
+        if acc and acc.get("accordionItems"):
+            item = acc["accordionItems"][0]
+            body = "\n".join(_text(b.get("data", "")) for b in item.get("bodyItems", []))
+            if body:
+                return {"heading": item.get("heading", {}).get("text", ""), "text": body}
+
+        logger.warning("[EdwardJones] no recap content found")
+    except Exception as e:
+        logger.warning(f"[EdwardJones] scrape failed: {e}")
+    return None
