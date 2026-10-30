@@ -70,7 +70,7 @@ def _drilldown_commentary(movers: list, theme_returns: dict) -> dict:
 
 _RECAP_SYSTEM = """You are a terse markets editor. Summarise the Edward Jones daily market update you receive.
 
-Output 4–6 bullet points, each one sentence, covering:
+Output 4–6 bullet points, each one complete sentence ending in a full stop, covering:
 - How major US indexes moved and why
 - Key earnings, economic data, or central-bank news
 - Bonds, oil, currencies, or overseas markets if mentioned
@@ -83,12 +83,18 @@ Rules:
 - No markdown, no HTML in the JSON values"""
 
 
+def _tidy_bullet(text: str) -> str:
+    # gpt-oss emits non-breaking hyphens/spaces and often drops the final period
+    text = text.replace("‑", "-").replace(" ", " ").replace(" ", " ").strip()
+    return text if text[-1] in ".!?" else text + "."
+
+
 def _market_recap_summary(recap: dict) -> list:
     try:
         raw = groq_call(_RECAP_SYSTEM, recap["text"][:12000], max_tokens=1000, json_mode=True)
         bullets = json.loads(raw).get("bullets", [])
         logger.info(f"Market recap bullets: {bullets}")
-        return bullets
+        return [_tidy_bullet(b) for b in bullets if b.strip()]
     except Exception as e:
         logger.warning(f"LLM market recap failed: {e}")
         return []
