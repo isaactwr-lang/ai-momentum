@@ -1,10 +1,10 @@
 """Daily AI Momentum Brief — runs after US market close Mon–Fri.
 
-Email layout (3 levels in one scroll):
+Email layout (one scroll):
+  L4 — Market recap       (LLM summary of Edward Jones daily market update + link) — shown first
   L1 — Layer summary row  (5 cells: Silicon / Infra / Connectivity / Platform / Apps)
   L2 — Theme heat map     (22 colour-coded cells, grouped by layer)
   L3 — Drill-down         (top 3 themes by |1D return|, ticker table + LLM commentary)
-  L4 — Market recap       (LLM summary of Edward Jones daily market update + link)
   Footer — link to interactive dashboard
 """
 import json
@@ -77,6 +77,7 @@ Output 4–6 bullet points, each one sentence, covering:
 Rules:
 - Keep specific numbers (index moves, yields, prices, data prints)
 - Ignore author names, disclaimers, and source lines
+- Do not mention Edward Jones or refer to "the update" — state the facts directly
 - Output valid JSON only: {"bullets": ["...", "..."]}
 - No markdown, no HTML in the JSON values"""
 
@@ -121,7 +122,7 @@ def _drilldown_section(movers: list, theme_returns: dict, commentary: dict) -> s
 
 
 def _market_recap_section(recap: dict | None, bullets: list) -> str:
-    html = '<h3 style="color:#1a3a5c;margin-top:24px">📰 Market Recap — Edward Jones</h3>'
+    html = '<h3 style="color:#1a3a5c;margin-top:0">📰 Market Recap</h3>'
     html += (
         '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px;'
         'padding:14px 16px;margin-bottom:12px;">'
@@ -163,15 +164,15 @@ def build_email(theme_returns: dict, date_str: str) -> str:
 
   <div style="padding:20px 24px;background:#f9fafb;border:1px solid #e5e7eb;border-top:none;">
 
-    <h3 style="color:#1a3a5c;margin-top:0">📊 Layer Performance</h3>
+    {l4}
+
+    <h3 style="color:#1a3a5c;margin-top:24px">📊 Layer Performance</h3>
     {l1}
 
     <h3 style="color:#1a3a5c;margin-top:16px">🗺️ Theme Heat Map — 1D Return</h3>
     {l2}
 
     {l3}
-
-    {l4}
 
     <hr style="margin-top:28px;border:none;border-top:1px solid #e5e7eb;">
     <p style="font-size:12px;color:#9ca3af;margin:12px 0 0;">
