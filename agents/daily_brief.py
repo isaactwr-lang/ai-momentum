@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from datetime import date, datetime
+from html import escape
 from pathlib import Path
 
 import pytz
@@ -84,8 +85,10 @@ Rules:
 
 def _market_recap_summary(recap: dict) -> list:
     try:
-        raw = groq_call(_RECAP_SYSTEM, recap["text"][:12000], max_tokens=600, json_mode=True)
-        return json.loads(raw).get("bullets", [])
+        raw = groq_call(_RECAP_SYSTEM, recap["text"][:12000], max_tokens=1000, json_mode=True)
+        bullets = json.loads(raw).get("bullets", [])
+        logger.info(f"Market recap bullets: {bullets}")
+        return bullets
     except Exception as e:
         logger.warning(f"LLM market recap failed: {e}")
         return []
@@ -130,7 +133,7 @@ def _market_recap_section(recap: dict | None, bullets: list) -> str:
     if recap and bullets:
         html += f'<div style="font-size:11px;color:#9ca3af;margin-bottom:6px">{recap["heading"]}</div>'
         html += '<ul style="font-size:13px;margin:0;padding-left:18px;color:#374151">'
-        html += "".join(f"<li style=\"margin-bottom:4px\">{b}</li>" for b in bullets)
+        html += "".join(f"<li style=\"margin-bottom:4px\">{escape(b)}</li>" for b in bullets)
         html += '</ul>'
     else:
         html += '<p style="font-size:13px;margin:0;color:#6b7280">Summary unavailable today.</p>'

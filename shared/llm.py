@@ -1,7 +1,10 @@
 """Thin Groq LLM wrapper for AI Momentum agents."""
+import logging
 import os
 from groq import Groq
 from shared.html import _md_to_html
+
+logger = logging.getLogger(__name__)
 
 
 def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = False) -> str:
@@ -20,5 +23,8 @@ def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = F
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     response = client.chat.completions.create(**kwargs)
-    text = response.choices[0].message.content
+    choice = response.choices[0]
+    if choice.finish_reason == "length":
+        logger.warning(f"Groq output hit max_tokens ({kwargs['max_tokens']}) — response truncated")
+    text = choice.message.content
     return text if json_mode else _md_to_html(text)
