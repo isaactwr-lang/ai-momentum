@@ -7,7 +7,8 @@ from shared.html import _md_to_html
 logger = logging.getLogger(__name__)
 
 
-def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = False) -> str:
+def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = False,
+              temperature: float | None = None) -> str:
     """Single Groq call. Returns cleaned HTML string (or raw JSON string if json_mode)."""
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     kwargs = dict(
@@ -22,6 +23,8 @@ def groq_call(system: str, user: str, max_tokens: int = 800, json_mode: bool = F
     )
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
+    if temperature is not None:
+        kwargs["temperature"] = temperature
     response = client.chat.completions.create(**kwargs)
     choice = response.choices[0]
     if choice.finish_reason == "length":

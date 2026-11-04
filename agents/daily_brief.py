@@ -10,6 +10,7 @@ Email layout (one scroll):
 import json
 import logging
 import os
+import re
 import sys
 from datetime import date, datetime
 from html import escape
@@ -76,7 +77,10 @@ Output 4–6 bullet points, each one complete sentence ending in a full stop, co
 - Bonds, oil, currencies, or overseas markets if mentioned
 
 Rules:
-- Keep specific numbers (index moves, yields, prices, data prints)
+- Use ONLY facts stated in the text — no outside knowledge, no inferences, no calculations
+- Copy numbers exactly as written (index moves, yields, prices, data prints)
+- Keep the source's characterisation of events — e.g. do not call an initial estimate "revised", or a hold a "cut"
+- If you are unsure of a detail, leave it out
 - Ignore author names, disclaimers, and source lines
 - Do not mention Edward Jones or refer to "the update" — state the facts directly
 - Output valid JSON only: {"bullets": ["...", "..."]}
@@ -89,12 +93,30 @@ def _tidy_bullet(text: str) -> str:
     return text if text[-1] in ".!?" else text + "."
 
 
+_NUM_RE = re.compile(r"(?<![A-Za-z])\d+(?:\.\d+)?")   # skips labels like Q3, H1
+
+
+def _numbers_in_source(bullet: str, source: str) -> bool:
+    # Every figure the LLM quotes must appear in the source text
+    source_nums = set(_NUM_RE.findall(source.replace(",", "")))
+    return all(n in source_nums for n in _NUM_RE.findall(bullet.replace(",", "")))
+
+
 def _market_recap_summary(recap: dict) -> list:
     try:
-        raw = groq_call(_RECAP_SYSTEM, recap["text"][:12000], max_tokens=1000, json_mode=True)
+        source = recap["text"][:12000]
+        raw = groq_call(_RECAP_SYSTEM, source, max_tokens=1000, json_mode=True, temperature=0)
         bullets = json.loads(raw).get("bullets", [])
         logger.info(f"Market recap bullets: {bullets}")
-        return [_tidy_bullet(b) for b in bullets if b.strip()]
+        checked = []
+        for b in bullets:
+            if not b.strip():
+                continue
+            if _numbers_in_source(b, source):
+                checked.append(_tidy_bullet(b))
+            else:
+                logger.warning(f"Dropped recap bullet with figure not in source: {b}")
+        return checked
     except Exception as e:
         logger.warning(f"LLM market recap failed: {e}")
         return []
@@ -137,7 +159,8 @@ def _market_recap_section(recap: dict | None, bullets: list) -> str:
         'padding:14px 16px;margin-bottom:12px;">'
     )
     if recap and bullets:
-        html += f'<div style="font-size:11px;color:#9ca3af;margin-bottom:6px">{recap["heading"]}</div>'
+        heading = re.sub(r"\s*[ap]\.m\.?\s*$", "", recap["heading"], flags=re.I)
+        html += f'<div style="font-size:11px;color:#9ca3af;margin-bottom:6px">{heading}</div>'
         html += '<ul style="font-size:13px;margin:0;padding-left:18px;color:#374151">'
         html += "".join(f"<li style=\"margin-bottom:4px\">{escape(b)}</li>" for b in bullets)
         html += '</ul>'
